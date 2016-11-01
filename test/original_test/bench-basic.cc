@@ -17,6 +17,7 @@ TEST_START("basic benchmark", "basic-bench")
   /* init value */
   for (int i = 0; i < value_len; i++) {
     value[i] = 'a' + ((i << 3) | i) % 52;
+    printf("%d\n",value[i]);
   }
   value[value_len - 1] = 0;
 
