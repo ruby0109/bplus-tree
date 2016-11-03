@@ -55,30 +55,30 @@ external/snappy/%.o: external/snappy/%.cc
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 TESTS =
-TESTS += test/test-api
-TESTS += test/test-reopen
-TESTS += test/test-range
-TESTS += test/test-corruption
-TESTS += test/test-bulk
-TESTS += test/test-threaded-rw
-TESTS += test/bench-basic
-TESTS += test/bench-bulk
-TESTS += test/bench-multithread-get
+TESTS += test/original_test/test-api
+TESTS += test/original_test/test-reopen
+TESTS += test/original_test/test-range
+TESTS += test/original_test/test-corruption
+TESTS += test/original_test/test-bulk
+TESTS += test/original_test/test-threaded-rw
+TESTS += test/original_test/bench-basic
+TESTS += test/original_test/bench-bulk
+TESTS += test/original_test/bench-multithread-get
 
 check: $(TESTS)
-	@test/test-api
-	@test/test-reopen
-	@test/test-range
-	@test/test-bulk
-	@test/test-corruption
-	@test/test-threaded-rw
+	@test/original_test/test-api
+	@test/original_test/test-reopen
+	@test/original_test/test-range
+	@test/original_test/test-bulk
+	@test/original_test/test-corruption
+	@test/original_test/test-threaded-rw
 
 test/%: test/%.cc bplus.a
 	$(CXX) $(CFLAGS) $(CPPFLAGS) $< -o $@ bplus.a $(LDFLAGS)
 
 clean:
-	@rm -f bplus.a
-	@rm -f $(OBJS) $(TESTS) $(deps)
+	rm -f bplus.a
+	rm -f $(OBJS) $(TESTS) $(deps)
 
 .PHONY: all check clean
 
