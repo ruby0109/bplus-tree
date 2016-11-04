@@ -54,23 +54,24 @@ bplus.a: $(OBJS)
 	$(AR) rcs bplus.a $(OBJS)
 
 src/%.o: src/%.c
-	$(CC) -g $(CSTDFLAG) $(CPPFLAGS) $(DEFINES) \
+	$(CC) $(CFLAGS) $(CSTDFLAG) $(CPPFLAGS) $(DEFINES) \
 		-o $@ -MMD -MF $@.d -c $< 
 
-external/snappy/%.o: external/snappy/%.cc
-	$(CC) -g $(CPPFLAGS) -c $< -o $@
-
+external/snappy/snappy.o: external/snappy/snappy.cc
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+external/snappy/snappy-c.o: external/snappy/snappy-c.cc
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+external/snappy/snappy-sinksource.o: external/snappy/snappy-sinksource.cc
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 test/phonebook_orig: $(SRCS_common) test/phonebook_orig.c test/phonebook_orig.h
 	$(CC) $(CFLAGS_common) $(CFLAGS_orig) \
 		-DIMPL="\"phonebook_orig.h\"" -o $@ \
 		$(SRCS_common) $@.c
-
 test/phonebook_opt: $(SRCS_common) test/phonebook_opt.c test/phonebook_opt.h
 	$(CC) $(CFLAGS_common) $(CFLAGS_opt) \
 		-DIMPL="\"phonebook_opt.h\"" -DOPT -o $@ \
 		$(SRCS_common) $@.c
-
 test/phonebook_bptree: $(SRCS_common) bplus.a
 	$(CXX) $(CPPFLAGS_common) $(CFLAGS_opt) \
 		-DIMPL="\"phonebook_bptree.h\"" -DBPTREE -o $@ \
