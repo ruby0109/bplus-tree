@@ -19,6 +19,8 @@ test/phonebook_opt
 ifeq ($(MODE),release)
 	CPPFLAGS += -O3
 	DEFINES += -DNDEBUG
+else
+	CFLAGS += -g
 endif
  
 # run make with SNAPPY=0 to turn it off
@@ -80,11 +82,11 @@ bplus.a: $(OBJS)
 	$(AR) rcs bplus.a $(OBJS)
 
 src/%.o: src/%.c
-	$(CC) -g $(CSTDFLAG) $(CPPFLAGS) $(DEFINES) \
+	$(CC) $(CFLAGS) $(CSTDFLAG) $(CPPFLAGS) $(DEFINES) \
 		-o $@ -MMD -MF $@.d -c $<
 
 external/snappy/%.o: external/snappy/%.cc
-	$(CC) -g $(CPPFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 TESTS =
 TESTS += test/original_test/test-api
@@ -106,7 +108,7 @@ check: $(TESTS)
 	@test/original_test/test-threaded-rw
 
 test/%: test/%.cc bplus.a
-	$(CXX) -g $(CPPFLAGS) $< -o $@ bplus.a $(LDFLAGS)
+	$(CXX) $(CFLAGS) $(CPPFLAGS) $< -o $@ bplus.a $(LDFLAGS)
 
 cache-test: $(EXEC)
 	perf stat --repeat 100 -e cache-misses,cache-references,instructions,cycles test/phonebook_orig
