@@ -1,4 +1,4 @@
-# Configurable options
+# Configuraible options
 #   MODE = release | debug (default: debug)
 #   SNAPPY = 0 | 1 (default: 1)
 #
@@ -7,6 +7,14 @@ CPPFLAGS += -fPIC -Iinclude -Iexternal/snappy
 CPPFLAGS += -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 CPPFLAGS += -D_XOPEN_SOURCE=500 -D_DARWIN_C_SOURCE
 LDFLAGS += -lpthread
+SRCS_common = test/main.c
+CFLAGS_common ?= -Wall -std=gnu99
+CFLAGS_orig = -O0
+CFLAGS_opt  = -O0
+
+EXEC = test/phonebook_orig \
+test/phonebook_bptree \
+test/phonebook_opt
 
 ifeq ($(MODE),release)
 	CPPFLAGS += -O3
@@ -14,7 +22,7 @@ ifeq ($(MODE),release)
 else
 	CFLAGS += -g
 endif
-
+ 
 # run make with SNAPPY=0 to turn it off
 ifneq ($(SNAPPY),0)
 	DEFINES += -DBP_USE_SNAPPY=1
@@ -28,19 +36,46 @@ external/snappy/config.status:
 	(git submodule init && git submodule update && cd external/snappy)
 	(cd external/snappy && ./autogen.sh && ./configure)
 
-OBJS =
-
+OBJS= 
 ifneq ($(SNAPPY),0)
 	OBJS += external/snappy/snappy-sinksource.o
 	OBJS += external/snappy/snappy.o
 	OBJS += external/snappy/snappy-c.o
 endif
-
 OBJS += src/utils.o
 OBJS += src/writer.o
 OBJS += src/values.o
 OBJS += src/pages.o
 OBJS += src/bplus.o
+
+deps := $(OBJS:%.o=%.o.d)
+
+bplus.a: $(OBJS)
+	$(AR) rcs bplus.a $(OBJS)
+
+src/%.o: src/%.c
+	$(CC) $(CFLAGS) $(CSTDFLAG) $(CPPFLAGS) $(DEFINES) \
+		-o $@ -MMD -MF $@.d -c $< 
+
+external/snappy/snappy.o: external/snappy/snappy.cc
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+external/snappy/snappy-c.o: external/snappy/snappy-c.cc
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+external/snappy/snappy-sinksource.o: external/snappy/snappy-sinksource.cc
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
+test/phonebook_orig: $(SRCS_common) test/phonebook_orig.c test/phonebook_orig.h
+	$(CC) $(CFLAGS_common) $(CFLAGS_orig) \
+		-DIMPL="\"phonebook_orig.h\"" -o $@ \
+		$(SRCS_common) $@.c
+test/phonebook_opt: $(SRCS_common) test/phonebook_opt.c test/phonebook_opt.h
+	$(CC) $(CFLAGS_common) $(CFLAGS_opt) \
+		-DIMPL="\"phonebook_opt.h\"" -DOPT -o $@ \
+		$(SRCS_common) $@.c
+test/phonebook_bptree: $(SRCS_common) bplus.a
+	$(CXX) $(CPPFLAGS_common) $(CFLAGS_opt) \
+		-DIMPL="\"phonebook_bptree.h\"" -DBPTREE -o $@ \
+		$(SRCS_common) bplus.a $(LDFLAGS)
 
 deps := $(OBJS:%.o=%.o.d)
 
@@ -76,9 +111,23 @@ check: $(TESTS)
 test/%: test/%.cc bplus.a
 	$(CXX) $(CFLAGS) $(CPPFLAGS) $< -o $@ bplus.a $(LDFLAGS)
 
+cache-test: $(EXEC)
+	perf stat --repeat 100 -e cache-misses,cache-references,instructions,cycles test/phonebook_orig
+	perf stat --repeat 100 -e cache-misses,cache-references,instructions,cycles test/phonebook_opt
+	perf stat --repeat 10 -e cache-misses,cache-references,instructions,cycles test/phonebook_bptree
+
+output.txt: cache-test ./test/calculate
+	./test/calculate
+
+plot: all output.txt
+	gnuplot test/scripts/runtime.gp
+
+./test/calculate: test/calculate.c
+	$(CC) $(CFLAGS_common) $^ -o $@
 clean:
 	rm -f bplus.a
 	rm -f $(OBJS) $(TESTS) $(deps)
+	rm $(EXEC) *.o perf.* ./test/calculate test/orig.txt opt.txt output.txt bptree.txt runtime.png
 
 .PHONY: all check clean
 
