@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-#include "private/tree.h"
-#include "private/values.h"
+#include "tree.h"
+#include "values.h"
 
 typedef struct bp__page_s bp__page_t;
 typedef struct bp__page_search_res_s bp__page_search_res_t;
