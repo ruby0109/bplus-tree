@@ -11,7 +11,8 @@ LDFLAGS += -lpthread
 
 EXEC = phonebook_orig \
 phonebook_bptree \
-phonebook_opt
+phonebook_opt \
+phonebook_bulk
 
 all: $(EXEC)
 
@@ -27,10 +28,15 @@ phonebook_opt: $(SRCS_common) phonebook_opt.c phonebook_opt.h
 		-DIMPL="\"$@.h\"" -DOPT -o $@ \
 		$(SRCS_common) $@.c
 
-phonebook_bptree: $(SRCS_common) ../bplus.a
+phonebook_bptree: $(SRCS_common) ../bplus.a phonebook_bptree.c phonebook_bptree.h
 	$(CXX) $(CPPFLAGS_common) $(CFLAGS_opt) \
 		-DIMPL="\"$@.h\"" -DBPTREE -o $@ \
-		$(SRCS_common) ../bplus.a $(LDFLAGS)
+		$(SRCS_common) $@.c ../bplus.a $(LDFLAGS)
+
+phonebook_bulk: $(SRCS_common) ../bplus.a phonebook_bptree.c phonebook_bptree.h
+	$(CXX) $(CPPFLAGS_common) $(CFLAGS_opt) \
+		-DIMPL="\"phonebook_bptree.h\"" -DBULK -o $@ \
+		$(SRCS_common) phonebook_bptree.c ../bplus.a $(LDFLAGS)
 
 run: $(EXEC)
 	echo 3 | sudo tee /proc/sys/vm/drop_caches
@@ -46,6 +52,9 @@ cache-test: $(EXEC)
 	perf stat --repeat 10 \
 		-e cache-misses,cache-references,instructions,cycles \
 		./phonebook_bptree
+	perf stat --repeat 10 \
+		-e cache-misses,cache-references,instructions,cycles \
+		./phonebook_bulk
 
 output.txt: cache-test calculate
 	./calculate
@@ -59,4 +68,4 @@ calculate: calculate.c
 .PHONY: clean
 clean:
 	$(RM) $(EXEC) *.o perf.* \
-	      	calculate orig.txt opt.txt output.txt runtime.png
+	      	calculate orig.txt opt.txt output.txt runtime.png bptree.txt bulk.txt

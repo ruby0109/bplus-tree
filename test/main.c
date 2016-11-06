@@ -6,9 +6,11 @@
 
 #include IMPL
 
-#if defined(BPTREE)
+#if defined(BPTREE)||defined(BULK)
 #include "../include/bplus.h"
 #define BP_FILE "/tmp/bp_tree.bp"
+#define NUM 350000
+#define BULK_SIZE 20000
 #include <unistd.h>
 #endif
 
@@ -42,26 +44,36 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+#if defined(BPTREE)||defined(BULK)
+    if(access(BP_FILE,F_OK)==0) assert(unlink(BP_FILE) ==0);
+    bp_db_t db;
+    bp_open(&db, "BP_FILE");
+#else
     /* build the entry */
     entry *pHead, *e;
     pHead = (entry *) malloc(sizeof(entry));
     printf("size of entry : %lu bytes\n", sizeof(entry));
     e = pHead;
     e->pNext = NULL;
-
-
-#if defined(BPTREE)
-    if(access(BP_FILE,F_OK)==0) assert(unlink(BP_FILE) ==0);
 #endif
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(BPTREE) && !defined(BULK)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
 #endif
+
     clock_gettime(CLOCK_REALTIME, &start);
-#if defined(BPTREE)
-    bp_db_t db;
-    bp_open(&db, "BP_FILE");
+
+#if defined(BULK)
+    char *bulk_buffer, *bulk_data[BULK_SIZE];
+    // number of data in the buffer
+    int bulk_data_count = 0;
+
+    bulk_buffer = (char*) malloc(BULK_SIZE * MAX_LAST_NAME_SIZE);
+    for(i=0; i < BULK_SIZE; i++) {
+        bulk_data[i] = bulk_buffer + MAX_LAST_NAME_SIZE * i;
+    }
 #endif
+    i = 0;
     while (fgets(line, sizeof(line), fp)) {
         while (line[i] != '\0')
             i++;
@@ -69,10 +81,32 @@ int main(int argc, char *argv[])
         i = 0;
 #if defined(BPTREE)
         bp_sets(&db, line, line);
+    }
+#elif defined(BULK)
+
+        strcpy(bulk_data[bulk_data_count++],line);
+
+        if(bulk_data_count == BULK_SIZE) {
+            bp_bulk_sets(&db,
+                         bulk_data_count,
+                         (const char**) bulk_data,
+                         (const char**) bulk_data);
+            bulk_data_count = 0;
+        }
+    }
+    // clean the data in the buffer
+    if(bulk_data_count != 0)
+    {
+        bp_bulk_sets(&db,
+                     bulk_data_count,
+                     (const char**) bulk_data,
+                     (const char**) bulk_data);
+        bulk_data_count = 0;
+    }
 #else
         e = append(line, e);
-#endif
     }
+#endif
     clock_gettime(CLOCK_REALTIME, &end);
     cpu_time1 = diff_in_second(start, end);
 
@@ -81,24 +115,24 @@ int main(int argc, char *argv[])
 
     /* the givn last name to find */
     char input[MAX_LAST_NAME_SIZE] = "zyxel";
-#if defined(BPTREE)
+#if defined(BPTREE)||defined(BULK)
     char* foundName;
     assert(bp_gets(&db, input, &foundName) == BP_OK);
     assert(0== strcmp(foundName, "zyxel"));
     free(foundName);
 #else
     e = pHead;
-//    assert(findName(input, e) && "Did you implement findName() in " IMPL "?");
-//    assert(0 == strcmp(findName(input, e)->lastName, "zyxel"));
+    assert(findName(input, e) && "Did you implement findName() in " IMPL "?");
+    assert(0 == strcmp(findName(input, e)->lastName, "zyxel"));
 #endif
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(BPTREE) && !defined(BULK)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
 #endif
     /* compute the execution time */
     clock_gettime(CLOCK_REALTIME, &start);
-#if defined(BPTREE)
+#if defined(BPTREE)||defined(BULK)
     bp_gets(&db, input, &foundName);
-#else    
+#else
     findName(input, e);
 #endif
     clock_gettime(CLOCK_REALTIME, &end);
@@ -108,6 +142,8 @@ int main(int argc, char *argv[])
     output = fopen("opt.txt", "a");
 #elif defined(BPTREE)
     output = fopen("bptree.txt", "a");
+#elif defined(BULK)
+    output = fopen("bulk.txt","a");
 #else
     output = fopen("orig.txt", "a");
 #endif
@@ -117,8 +153,12 @@ int main(int argc, char *argv[])
     printf("execution time of append() : %lf sec\n", cpu_time1);
     printf("execution time of findName() : %lf sec\n", cpu_time2);
 
+
+#if defined(BULK)
+    free(bulk_buffer);
+#elif !defined(BPTREE)
     if (pHead->pNext) free(pHead->pNext);
     free(pHead);
-
+#endif
     return 0;
 }

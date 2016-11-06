@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-#include "private/writer.h"
-#include "private/pages.h"
+#include "writer.h"
+#include "pages.h"
 
 #include <pthread.h>
 
