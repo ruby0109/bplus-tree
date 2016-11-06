@@ -9,12 +9,17 @@
 #if defined(BPTREE)||defined(BULK)
 #include "../include/bplus.h"
 #define BP_FILE "/tmp/bp_tree.bp"
-#define NUM 350000
-#define BULK_SIZE 20000
+#define BULK_SIZE 350000
 #include <unistd.h>
 #endif
+#if defined(BULK)
+#include <sys/mman.h>
+#include "file.c"
+#include <fcntl.h>
+#define ALIGN_FILE "align.txt"
+#endif
 
-#define DICT_FILE "./test/dictionary/words.txt"
+#define DICT_FILE "./dictionary/words.txt"
 
 static double diff_in_second(struct timespec t1, struct timespec t2)
 {
@@ -37,12 +42,19 @@ int main(int argc, char *argv[])
     struct timespec start, end;
     double cpu_time1, cpu_time2;
 
+#if !defined(BULK)
     /* check file opening */
     fp = fopen(DICT_FILE, "r");
     if (fp == NULL) {
         printf("cannot open the file\n");
         return -1;
     }
+#else
+    /* Align data file to MAX_LAST_NAME_SIZE one line*/
+    file_align(DICT_FILE, ALIGN_FILE, MAX_LAST_NAME_SIZE);
+    int fd = open(ALIGN_FILE, O_RDONLY | O_NONBLOCK);
+    off_t fs = fsize(ALIGN_FILE);
+#endif
 
 #if defined(BPTREE)||defined(BULK)
     if(access(BP_FILE,F_OK)==0) assert(unlink(BP_FILE) ==0);
@@ -64,15 +76,22 @@ int main(int argc, char *argv[])
     clock_gettime(CLOCK_REALTIME, &start);
 
 #if defined(BULK)
-    char *bulk_buffer, *bulk_data[BULK_SIZE];
-    // number of data in the buffer
-    int bulk_data_count = 0;
+    /* mmap for data file*/
+    char *map = (char*) mmap(NULL, fs, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+    assert(map && "mmap error");
 
-    bulk_buffer = (char*) malloc(BULK_SIZE * MAX_LAST_NAME_SIZE);
-    for(i=0; i < BULK_SIZE; i++) {
-        bulk_data[i] = bulk_buffer + MAX_LAST_NAME_SIZE * i;
+    char *bulk_data[BULK_SIZE];
+    int bulk_data_count = fs / MAX_LAST_NAME_SIZE;
+
+    for(i=0; i < bulk_data_count; i++) {
+        bulk_data[i] = map + MAX_LAST_NAME_SIZE * i;
     }
-#endif
+    bp_bulk_sets(&db,
+                 bulk_data_count,
+                 (const char**) bulk_data,
+                 (const char**) bulk_data);
+
+#else
     i = 0;
     while (fgets(line, sizeof(line), fp)) {
         while (line[i] != '\0')
@@ -81,37 +100,17 @@ int main(int argc, char *argv[])
         i = 0;
 #if defined(BPTREE)
         bp_sets(&db, line, line);
-    }
-#elif defined(BULK)
-
-        strcpy(bulk_data[bulk_data_count++],line);
-
-        if(bulk_data_count == BULK_SIZE) {
-            bp_bulk_sets(&db,
-                         bulk_data_count,
-                         (const char**) bulk_data,
-                         (const char**) bulk_data);
-            bulk_data_count = 0;
-        }
-    }
-    // clean the data in the buffer
-    if(bulk_data_count != 0)
-    {
-        bp_bulk_sets(&db,
-                     bulk_data_count,
-                     (const char**) bulk_data,
-                     (const char**) bulk_data);
-        bulk_data_count = 0;
-    }
 #else
         e = append(line, e);
+#endif
     }
 #endif
     clock_gettime(CLOCK_REALTIME, &end);
     cpu_time1 = diff_in_second(start, end);
-
+#if !defined(BULK)
     /* close file as soon as possible */
     fclose(fp);
+#endif
 
     /* the givn last name to find */
     char input[MAX_LAST_NAME_SIZE] = "zyxel";
@@ -154,9 +153,7 @@ int main(int argc, char *argv[])
     printf("execution time of findName() : %lf sec\n", cpu_time2);
 
 
-#if defined(BULK)
-    free(bulk_buffer);
-#elif !defined(BPTREE)
+#if !defined(BPTREE) && !defined(BULK)
     if (pHead->pNext) free(pHead->pNext);
     free(pHead);
 #endif
