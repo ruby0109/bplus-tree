@@ -78,9 +78,9 @@ test/phonebook_bptree: $(SRCS_common) bplus.a test/phonebook_bptree.c test/phone
 		-DIMPL="\"phonebook_bptree.h\"" -DBPTREE -o $@ \
 		$(SRCS_common) bplus.a $(LDFLAGS)
 test/phonebook_bulk: $(SRCS_common) bplus.a test/phonebook_bptree.c test/phonebook_bptree.h
-    $(CXX) $(CPPFLAGS_common) $(CFLAGS_opt) \
+	$(CXX) $(CPPFLAGS_common) $(CFLAGS_opt) \
         -DIMPL="\"phonebook_bptree.h\"" -DBULK -o $@ \
-        $(SRCS_common) phonebook_bptree.c ../bplus.a $(LDFLAGS)
+        $(SRCS_common) test/phonebook_bptree.c bplus.a $(LDFLAGS)
 
 deps := $(OBJS:%.o=%.o.d)
 
