@@ -14,7 +14,8 @@ CFLAGS_opt  = -O0
 
 EXEC = test/phonebook_orig \
 test/phonebook_bptree \
-test/phonebook_opt
+test/phonebook_opt \
+test/phonebook_bulk
 
 ifeq ($(MODE),release)
 	CPPFLAGS += -O3
@@ -72,15 +73,16 @@ test/phonebook_opt: $(SRCS_common) test/phonebook_opt.c test/phonebook_opt.h
 	$(CC) $(CFLAGS_common) $(CFLAGS_opt) \
 		-DIMPL="\"phonebook_opt.h\"" -DOPT -o $@ \
 		$(SRCS_common) $@.c
-test/phonebook_bptree: $(SRCS_common) bplus.a
+test/phonebook_bptree: $(SRCS_common) bplus.a test/phonebook_bptree.c test/phonebook_bptree.h
 	$(CXX) $(CPPFLAGS_common) $(CFLAGS_opt) \
 		-DIMPL="\"phonebook_bptree.h\"" -DBPTREE -o $@ \
 		$(SRCS_common) bplus.a $(LDFLAGS)
+test/phonebook_bulk: $(SRCS_common) bplus.a test/phonebook_bptree.c test/phonebook_bptree.h
+    $(CXX) $(CPPFLAGS_common) $(CFLAGS_opt) \
+        -DIMPL="\"phonebook_bptree.h\"" -DBULK -o $@ \
+        $(SRCS_common) phonebook_bptree.c ../bplus.a $(LDFLAGS)
 
 deps := $(OBJS:%.o=%.o.d)
-
-bplus.a: $(OBJS)
-	$(AR) rcs bplus.a $(OBJS)
 
 src/%.o: src/%.c
 	$(CC) $(CFLAGS) $(CSTDFLAG) $(CPPFLAGS) $(DEFINES) \
@@ -115,6 +117,7 @@ cache-test: $(EXEC)
 	perf stat --repeat 100 -e cache-misses,cache-references,instructions,cycles test/phonebook_orig
 	perf stat --repeat 100 -e cache-misses,cache-references,instructions,cycles test/phonebook_opt
 	perf stat --repeat 10 -e cache-misses,cache-references,instructions,cycles test/phonebook_bptree
+	perf stat --repeat 10 -e cache-misses,cache-references,instructions,cycles test/phonebook_bulk
 
 output.txt: cache-test ./test/calculate
 	./test/calculate
@@ -127,7 +130,7 @@ plot: all output.txt
 clean:
 	rm -f bplus.a
 	rm -f $(OBJS) $(TESTS) $(deps)
-	rm $(EXEC) *.o perf.* ./test/calculate test/orig.txt opt.txt output.txt bptree.txt runtime.png
+	$(RM) $(EXEC) *.o perf.* ./test/calculate test/orig.txt opt.txt output.txt bptree.txt runtime.png
 
 .PHONY: all check clean
 
