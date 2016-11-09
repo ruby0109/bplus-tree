@@ -116,7 +116,7 @@ test/%: test/%.cc bplus.a
 cache-test: $(EXEC)
 	perf stat --repeat 100 -e cache-misses,cache-references,instructions,cycles test/phonebook_orig
 	perf stat --repeat 100 -e cache-misses,cache-references,instructions,cycles test/phonebook_opt
-	perf stat --repeat 10 -e cache-misses,cache-references,instructions,cycles test/phonebook_bptree
+	perf stat --repeat 5 -e cache-misses,cache-references,instructions,cycles test/phonebook_bptree
 	perf stat --repeat 10 -e cache-misses,cache-references,instructions,cycles test/phonebook_bulk
 
 output.txt: cache-test ./test/calculate
@@ -130,7 +130,7 @@ plot: all output.txt
 clean:
 	rm -f bplus.a
 	rm -f $(OBJS) $(TESTS) $(deps)
-	$(RM) $(EXEC) *.o perf.* ./test/calculate test/orig.txt opt.txt output.txt bptree.txt runtime.png
+	$(RM) $(EXEC) *.o perf.* ./test/calculate orig.txt opt.txt output.txt bptree.txt bulk.txt runtime.png
 
 .PHONY: all check clean
 
