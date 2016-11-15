@@ -23,7 +23,7 @@ uint64_t bp__compute_hashl(uint64_t key)
     uint32_t keyl = key & 0xffffffffLL;
 
     return ((uint64_t) bp__compute_hash(keyh) << 32) |
-                       bp__compute_hash(keyl);
+           bp__compute_hash(keyl);
 }
 
 uint64_t htonll(uint64_t value)

@@ -17,11 +17,15 @@ int bp__value_load(bp_db_t *t,
     uint64_t buff_len = length;
 
     /* read data from disk first */
+    /* Read the common resources.*/
+    pthread_rwlock_rdlock(&t->rwlock);
     ret = bp__writer_read((bp__writer_t*) t,
                           kCompressed,
                           offset,
                           &buff_len,
                           (void **) &buff);
+    pthread_rwlock_unlock(&t->rwlock);
+
     if (ret != BP_OK) return ret;
 
     value->value = malloc(buff_len - 16);
@@ -69,11 +73,15 @@ int bp__value_save(bp_db_t *t,
     memcpy(buff + 16, value->value, value->length);
 
     *length = value->length + 16;
+
+    /* Write to the common resources.*/
+    pthread_rwlock_wrlock(&t->rwlock);
     ret = bp__writer_write((bp__writer_t *) t,
                            kCompressed,
                            buff,
                            offset,
                            length);
+    pthread_rwlock_unlock(&t->rwlock);
     free(buff);
 
     return ret;

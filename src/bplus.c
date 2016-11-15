@@ -126,7 +126,6 @@ int bp_bulk_update(bp_db_t *tree,
     bp_value_t* values_iter = (bp_value_t *) *values;
     uint64_t left = count;
 
-    pthread_rwlock_wrlock(&tree->rwlock);
 
     ret = bp__page_bulk_insert(tree,
                                tree->head.page,
@@ -140,7 +139,6 @@ int bp_bulk_update(bp_db_t *tree,
         ret =  bp__tree_write_head((bp__writer_t *) tree, NULL);
     }
 
-    pthread_rwlock_unlock(&tree->rwlock);
 
     return ret;
 }
@@ -453,35 +451,51 @@ int bp__tree_write_head(bp__writer_t *w, void *data)
     uint64_t offset;
     uint64_t size;
 
+    /* Write to the common resources.*/
+    pthread_rwlock_wrlock(&t->rwlock);
     if (t->head.page == NULL) {
         /* TODO: page size should be configurable */
         t->head.page_size = 64;
+        pthread_rwlock_unlock(&t->rwlock);
+
 
         /* Create empty leaf page */
         ret = bp__page_create(t, kLeaf, 0, 1, &t->head.page);
         if (ret != BP_OK) return ret;
 
+        /* Write to the common resources.*/
+        pthread_rwlock_wrlock(&t->rwlock);
         t->head.page->is_head = 1;
+        pthread_rwlock_unlock(&t->rwlock);
     }
 
     /* Update head's position */
+    /* Write to the common resources.*/
+    pthread_rwlock_wrlock(&t->rwlock);
     t->head.offset = t->head.page->offset;
     t->head.config = t->head.page->config;
 
     t->head.hash = bp__compute_hashl(t->head.offset);
+    pthread_rwlock_unlock(&t->rwlock);
 
     /* Create temporary head with fields in network byte order */
+    /* Read the common resources.*/
+    pthread_rwlock_rdlock(&t->rwlock);
     nhead.offset = htonll(t->head.offset);
     nhead.config = htonll(t->head.config);
     nhead.page_size = htonll(t->head.page_size);
     nhead.hash = htonll(t->head.hash);
+    pthread_rwlock_unlock(&t->rwlock);
 
     size = BP__HEAD_SIZE;
+    /* Write to the common resources.*/
+    pthread_rwlock_wrlock(&t->rwlock);
     ret = bp__writer_write(w,
                            kNotCompressed,
                            &nhead,
                            &offset,
                            &size);
+    pthread_rwlock_unlock(&t->rwlock);
 
     return ret;
 }
