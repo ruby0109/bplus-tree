@@ -8,7 +8,7 @@ CPPFLAGS += -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 CPPFLAGS += -D_XOPEN_SOURCE=500 -D_DARWIN_C_SOURCE
 LDFLAGS += -lpthread
 SRCS_common = test/main.c
-CFLAGS_common ?= -Wall -std=gnu99 
+CFLAGS_common ?= -Wall -std=gnu99
 CFLAGS_orig = -O0
 CFLAGS_opt  = -O0
 
@@ -54,6 +54,10 @@ deps := $(OBJS:%.o=%.o.d)
 bplus.a: $(OBJS)
 	$(AR) rcs bplus.a $(OBJS)
 
+src/%.o: src/%.c
+	$(CC) $(CFLAGS) $(CSTDFLAG) $(CPPFLAGS) $(DEFINES) \
+		-o $@ -MMD -MF $@.d -c $< 
+
 external/snappy/snappy.o: external/snappy/snappy.cc
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 external/snappy/snappy-c.o: external/snappy/snappy-c.cc
@@ -82,7 +86,7 @@ deps := $(OBJS:%.o=%.o.d)
 
 src/%.o: src/%.c
 	$(CC) $(CFLAGS) $(CSTDFLAG) $(CPPFLAGS) $(DEFINES) \
-		-o $@ -MMD -MF $@.d -c $< 
+		-o $@ -MMD -MF $@.d -c $<
 
 external/snappy/%.o: external/snappy/%.cc
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@

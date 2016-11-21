@@ -30,7 +30,8 @@ TEST_START("bulk set benchmark", "bulk-bench")
     }
   }
 
-  /* ensure that results are correct */
+
+  // ensure that results are correct 
   for (i = 0; i < num; i++) {
     char* key;
     char* value;
@@ -43,5 +44,6 @@ TEST_START("bulk set benchmark", "bulk-bench")
     free(key);
     free(value);
   }
+
 
 TEST_END("bulk set benchmark", "bulk-bench")

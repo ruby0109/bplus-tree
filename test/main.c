@@ -14,7 +14,7 @@
 #include <unistd.h>
 #endif
 
-#define DICT_FILE "./test/dictionary/words.txt"
+#define DICT_FILE "./test/dictionary/new_usname.csv"
 
 static double diff_in_second(struct timespec t1, struct timespec t2)
 {
@@ -115,11 +115,11 @@ int main(int argc, char *argv[])
 #endif
 
     /* the givn last name to find */
-    char input[MAX_LAST_NAME_SIZE] = "zyxel";
+    char input[MAX_LAST_NAME_SIZE] = "May";
 #if defined(BPTREE)||defined(BULK)
     char* foundName;
     assert(bp_gets(&db, input, &foundName) == BP_OK);
-    assert(0== strcmp(foundName, "zyxel"));
+    assert(0== strcmp(foundName, "May"));
     free(foundName);
 #else
     e = pHead;

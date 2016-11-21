@@ -71,11 +71,7 @@ int bp_get(bp_db_t *tree, const bp_key_t* key, bp_value_t *value)
 {
     int ret;
 
-    pthread_rwlock_rdlock(&tree->rwlock);
-
     ret = bp__page_get(tree, tree->head.page, key, value);
-
-    pthread_rwlock_unlock(&tree->rwlock);
 
     return ret;
 }
@@ -458,7 +454,6 @@ int bp__tree_write_head(bp__writer_t *w, void *data)
         t->head.page_size = 64;
         pthread_rwlock_unlock(&t->rwlock);
 
-
         /* Create empty leaf page */
         ret = bp__page_create(t, kLeaf, 0, 1, &t->head.page);
         if (ret != BP_OK) return ret;
@@ -496,7 +491,6 @@ int bp__tree_write_head(bp__writer_t *w, void *data)
                            &offset,
                            &size);
     pthread_rwlock_unlock(&t->rwlock);
-
     return ret;
 }
 

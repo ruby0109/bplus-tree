@@ -22,6 +22,7 @@ int bp__page_create(bp_db_t *t,
 
     if (p == NULL) return BP_EALLOC;
 
+
     p->type = type;
     if (type == kLeaf) {
         p->length = 0;
@@ -45,7 +46,6 @@ int bp__page_create(bp_db_t *t,
     p->is_head = 0;
 
     *page = p;
-
     return BP_OK;
 }
 
@@ -108,6 +108,7 @@ int bp__page_read(bp_db_t *t, bp__page_t *page)
     pthread_rwlock_rdlock(&t->rwlock);
     ret = bp__writer_read(w, kCompressed, page->offset, &size, (void**) &buff);
     pthread_rwlock_unlock(&t->rwlock);
+
     if (ret != BP_OK) return ret;
 
     /* Parse data */
@@ -193,8 +194,8 @@ int bp__page_save(bp_db_t *t, bp__page_t *page)
                            buff,
                            &page->offset,
                            &page->config);
-    pthread_rwlock_unlock(&t->rwlock);
     page->config = (page->config << 1) | (page->type == kLeaf);
+    pthread_rwlock_unlock(&t->rwlock);
 
     free(buff);
     return ret;
@@ -241,7 +242,6 @@ int bp__page_save_value(bp_db_t *t,
         }
         previous.offset = page->keys[index].offset;
         previous.length = page->keys[index].config;
-
         bp__page_remove_idx(t, page, index);
     }
 
@@ -288,16 +288,16 @@ int bp__page_search(bp_db_t *t,
     /* assert infinite recursion */
     assert(page->type == kLeaf || page->length > 0);
 
+    /* Read the common resources.*/
+    pthread_rwlock_rdlock(&t->rwlock);
     while (i < page->length) {
         /* left key is always lower in non-leaf nodes */
-        /* Read the common resources.*/
-        pthread_rwlock_rdlock(&t->rwlock);
         cmp = t->compare_cb((bp_key_t*) &page->keys[i], key);
-        pthread_rwlock_unlock(&t->rwlock);
 
         if (cmp >= 0) break;
         i++;
     }
+    pthread_rwlock_unlock(&t->rwlock);
 
     result->cmp = cmp;
 
@@ -484,6 +484,7 @@ int bp__page_bulk_insert(bp_db_t *t,
 {
     int ret;
     bp__page_search_res_t res;
+    uint64_t tmp_pagesize;
 
     /* Read the common resources.*/
     pthread_rwlock_rdlock(&t->rwlock);
@@ -545,8 +546,9 @@ int bp__page_bulk_insert(bp_db_t *t,
 
         /* Read the common resources.*/
         pthread_rwlock_rdlock(&t->rwlock);
-        if (page->length == t->head.page_size) {
-            pthread_rwlock_unlock(&t->rwlock);
+        tmp_pagesize = t->head.page_size;
+        pthread_rwlock_unlock(&t->rwlock);
+        if (page->length == tmp_pagesize) {
             if (page->is_head) {
                 ret = bp__page_split_head(t, &page);
                 if (ret != BP_OK) return ret;
@@ -555,15 +557,12 @@ int bp__page_bulk_insert(bp_db_t *t,
                 return BP_ESPLITPAGE;
             }
         }
-        pthread_rwlock_unlock(&t->rwlock);
 
-        /* Read the common resources.*/
         pthread_rwlock_rdlock(&t->rwlock);
         assert(page->length < t->head.page_size);
-        pthread_rwlock_unlock(&t->rwlock);
     }
-
     pthread_rwlock_unlock(&t->rwlock);
+
     return bp__page_save(t, page);
 }
 
@@ -735,7 +734,6 @@ int bp__page_split(bp_db_t *t,
 
     right->byte_size = 0;
     right->length = 0;
-
     /* Read the common resources.*/
     pthread_rwlock_rdlock(&t->rwlock);
     for (; i < t->head.page_size; i++) {
@@ -787,6 +785,7 @@ int bp__page_split_head(bp_db_t *t, bp__page_t **page)
         bp__page_destroy(t, new_head);
         return ret;
     }
+
     /* Write to the common resources.*/
     pthread_rwlock_wrlock(&t->rwlock);
     t->head.page = new_head;
@@ -803,6 +802,7 @@ void bp__page_shiftr(bp_db_t *t, bp__page_t *p, const uint64_t index)
     if (p->length != 0) {
         for (uint64_t i = p->length - 1; i >= index; i--) {
             bp__kv_copy(&p->keys[i], &p->keys[i + 1], 0);
+
             if (i == 0) break;
         }
     }

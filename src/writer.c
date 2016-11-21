@@ -114,9 +114,7 @@ int bp__writer_read(bp__writer_t *w,
     ssize_t bytes_read;
     char *cdata;
 
-    if (w->filesize < offset + *size) {
-        return BP_EFILEREAD_OOB;
-    }
+    if (w->filesize < offset + *size) return BP_EFILEREAD_OOB;
 
     /* Ignore empty reads */
     if (*size == 0) {
@@ -128,7 +126,6 @@ int bp__writer_read(bp__writer_t *w,
     if (cdata == NULL) return BP_EALLOC;
 
     bytes_read = pread(w->fd, cdata, (size_t) *size, (off_t) offset);
-
     if ((uint64_t) bytes_read != *size) {
         free(cdata);
         return BP_EFILEREAD;
